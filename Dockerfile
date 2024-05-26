@@ -14,5 +14,5 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine as runtime
 
 WORKDIR /app
 COPY --from=build /publish ./
-EXPOSE 80
+EXPOSE 8080
 CMD dotnet Sensify.dll
