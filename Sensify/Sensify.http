@@ -1,0 +1,15 @@
+@Sensify_HostAddress = http://localhost:5125
+
+GET {{Sensify_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+POST {{Sensify_HostAddress}}/api/record/
+Content-Type: application/json
+
+{
+    "date": "05-26-2024"
+}
+
+###

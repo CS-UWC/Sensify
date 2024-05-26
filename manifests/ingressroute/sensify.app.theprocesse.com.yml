@@ -1,0 +1,36 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sensify-server
+  namespace: sensify
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`sensify.app.theprocesse.com`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: sensify-server
+          port: 80
+      middlewares:
+        - name: redirect-https-scheme
+          namespace: sensify
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: sensify-server-tls
+  namespace: sensify
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`sensify.app.theprocesse.com`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: sensify-server
+          port: 80
+          sticky:
+            cookie: {}
+  tls:
+    secretName: sensify.app.theprocesse.com

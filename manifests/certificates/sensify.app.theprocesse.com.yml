@@ -1,0 +1,15 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sensify.app.theprocesse.com
+  namespace: sensify
+spec:
+  secretName: sensify.app.theprocesse.com
+  dnsNames:
+    - sensify.app.theprocesse.com
+  issuerRef:
+    name: letsencrypt-production
+    # We can reference ClusterIssuers by changing the kind here.
+    # The default value is Issuer (i.e. a locally namespaced Issuer)
+    kind: ClusterIssuer
+    group: cert-manager.io
