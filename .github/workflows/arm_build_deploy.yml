@@ -64,7 +64,7 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           push: ${{ env.PUSH }}
           tags: ${{ steps.ghcr_tag.outputs.lowercase }}
-          file: Dockerfile.server
+          file: Dockerfile
 
   #       - name: Build and push Backend
   #         env:
@@ -101,7 +101,7 @@ jobs:
           BACKEND_IMAGE: ${{ steps.ghcr_tag.outputs.lowercase }}
           VERSION: ${{ env.TAG_NAME }}
         run: |
-          yq -i 'select(.spec.template.spec.containers[0].name == "marketx-server").spec.template.spec.containers[0].image |= strenv(BACKEND_IMAGE)' ./deployment-server.yml
+          yq -i 'select(.spec.template.spec.containers[0].name == "sensify-server").spec.template.spec.containers[0].image |= strenv(BACKEND_IMAGE)' ./deployment-server.yml
           commit_msg="DEPLOYING VERSION $VERSION"
           echo $commit_msg
           git config user.email $GIT_CONFIG_USER_EMAIL
