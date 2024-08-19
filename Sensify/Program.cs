@@ -12,6 +12,8 @@ app.UseHttpsRedirection();
 
 var api = app.MapGroup("/api");
 
+api.MapGet("/", () => DateTimeOffset.UtcNow);
+
 api.MapPost("/record", (ILoggerFactory loggerFactory, HttpRequest request, [FromBody] Dictionary<string,object> body) =>
 {
    var logger = loggerFactory.CreateLogger("test");
