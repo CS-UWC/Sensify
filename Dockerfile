@@ -10,9 +10,9 @@ RUN dotnet restore
 COPY ./Sensify ./Sensify
 RUN dotnet publish -c Release -o /publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine as runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
 
 WORKDIR /app
 COPY --from=build /publish ./
 EXPOSE 8080
-CMD dotnet Sensify.dll
+CMD ["dotnet", "Sensify.dll"]
