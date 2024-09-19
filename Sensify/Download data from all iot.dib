@@ -1,0 +1,176 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"languageName":"csharp","name":"csharp"}]}}
+
+#!csharp
+
+#r "nuget: MongoDb.Driver"
+#r "nuget: System.Net.Http.Json"
+#r "nuget: System.Text.Json"
+
+#!csharp
+
+using System.Collections.Generic;
+using System.Net;
+using System.Dynamic;
+using System.Net.Mime;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using MongoDB.Driver;
+using MongoDB.Bson;
+
+#!csharp
+
+var username = Environment.GetEnvironmentVariable("ALL_IO_USERNAME");
+var password = Environment.GetEnvironmentVariable("ALL_IO_PASSWORD");
+
+#!csharp
+
+var allIoApiBaseUrl = "https://alliot.wanesy.com";
+
+var client = new HttpClient(){
+    BaseAddress = new Uri(allIoApiBaseUrl)
+};
+
+#!csharp
+
+var loginPath = "/gms/application/login";
+var dataUpPath = "/gms/application/dataUp";
+
+#!csharp
+
+record LoginResponse(ulong expiredDate, string token);
+
+#!csharp
+
+HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, loginPath);
+request.Content = new StringContent(JsonSerializer.Serialize(new {login = username, password = password}), new MediaTypeHeaderValue(MediaTypeNames.Application.Json));
+LoginResponse tokenResponse = await client.SendAsync(request)
+    .ContinueWith(async x => await x.Result.Content.ReadAsStringAsync())
+    .ContinueWith(x => JsonSerializer.Deserialize<LoginResponse>(x.Result.Result));
+
+#!csharp
+
+var mongoSettings = MongoClientSettings.FromConnectionString(Environment.GetEnvironmentVariable("MONGO_CONNECTION_STRING"));
+
+var mongoClient = new MongoClient(mongoSettings);
+
+var sensifyDb = mongoClient.GetDatabase("sensify");
+
+#!csharp
+
+record DataUpQuery(
+    string sort,
+    uint page,
+    uint pageSize
+){
+
+    public string ToQueryString(){
+        return $"sort={sort}&page={page}&pageSize={pageSize}";
+    }
+}
+
+#!csharp
+
+record ClusterInfo(int id);
+
+record EndDevice(string devAddr, ClusterInfo cluster, string devEui);
+
+record Link(string rel, string href);
+
+record DataUpInfo(
+    string id,
+    EndDevice endDevice,
+    bool pushed,
+    int fport,
+    int fCntDown,
+    int fCntUp,
+    bool confirmed,
+    string payload,
+    bool encrypted,
+    float ulFrequency,
+    string modulation,
+    string dataRate,
+    long recvTime,
+    long gwRecvTime,
+    int gwCnt,
+    bool adr,
+    string codingRate,
+    bool delayed,
+    bool classB,
+    string encodingType);
+
+record DataUpResponse(int count, int page, int pageSize, List<Link> links, int totalCount, List<DataUpInfo> list, int nbPages);
+
+#!csharp
+
+var rawWncDataCollection = sensifyDb.GetCollection<BsonDocument>("raw_wnc_data");
+
+#!csharp
+
+var query = new DataUpQuery("-recvTime", 1, 100);
+
+var dataUpRequest = new HttpRequestMessage(HttpMethod.Get, $"{dataUpPath}?={query.ToQueryString()}");
+dataUpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.token);
+
+while(true){
+    var response = await client.SendAsync(dataUpRequest)
+        .ContinueWith(x => x.Result.Content.ReadAsStringAsync())
+        .ContinueWith(x => JsonSerializer.Deserialize<DataUpResponse>(x.Result.Result));
+
+        
+    var list = response.list
+        .Select(x => x.ToJson())
+        .Select(x => BsonDocument.Parse(x))
+        .Select(x => {
+            x["recvTime"] = BsonValue.Create(DateTimeOffset.FromUnixTimeMilliseconds(x["recvTime"].AsInt64).DateTime);
+            return x;
+        });
+
+    await rawWncDataCollection.InsertManyAsync(list);
+
+    var next = response.links
+    .Where(x => x.rel == "next")
+    .Select(x => x with {href = $"/gms{x.href}"})
+    .FirstOrDefault();
+
+    if(next is null) break;
+
+    dataUpRequest = new HttpRequestMessage(HttpMethod.Get, next.href);
+    dataUpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.token);
+    
+}
+
+#!csharp
+
+var next = response.links.Where(x => x.rel == "next").Select(x => x with {href = $"/gms{x.href}"}).FirstOrDefault();
+
+dataUpRequest = new HttpRequestMessage(HttpMethod.Get, next.href);
+dataUpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResponse.token);
+
+await await client.SendAsync(dataUpRequest)
+        .ContinueWith(x => x.Result.Content.ReadAsStringAsync())
+        //.ContinueWith(x => JsonSerializer.Deserialize<DataUpResponse>(x.Result.Result))
+
+#!csharp
+
+//BsonDateTime.Create()
+
+var a = BsonDocument.Parse(response.list.First().ToJson());
+a["recvTime"] = BsonValue.Create(DateTimeOffset.FromUnixTimeMilliseconds(a["recvTime"].AsInt64).DateTime);
+
+#!csharp
+
+var rawWncDataCollection = sensifyDb.GetCollection<BsonDocument>("raw_wnc_data");
+
+#!csharp
+
+await rawWncDataCollection.InsertOneAsync(a)
+
+#!csharp
+
+BsonDocument.Create(response.list.First())

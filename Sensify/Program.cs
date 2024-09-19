@@ -1,3 +1,5 @@
+using System.Net.Http.Headers;
+using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
