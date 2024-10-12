@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 .vscode
+/Sensify/Properties/launchSettings.Development.json
