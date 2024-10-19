@@ -1,6 +1,9 @@
+using EnumToStringGenerator;
+
 namespace Sensify.Decoders;
 
-internal enum ElsysTDataUpType : byte{
+[GenerateStrings]
+public enum ElsysDataUpType : byte{
     Temp = 0x01, //temp 2 bytes -3276.8°C -->3276.7°C
     Rh = 0x02, //Humidity 1 byte  0-100%
     Acc = 0x03, //acceleration 3 bytes X,Y,Z -128 --> 127 +/-63=1G
