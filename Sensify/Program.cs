@@ -1,10 +1,28 @@
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver;
+using Orleans.Hosting;
+using Sensify.Grains;
+using Sensify.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+// Add Orleans
+{
+    builder.Host.UseOrleans(static siloBuilder =>
+    {
+        siloBuilder.UseMongoDBClient(siloBuilder.Configuration["MONGO_CONNECTION_STRING"]);
+        siloBuilder.UseLocalhostClustering();
+        siloBuilder.AddMongoDBGrainStorage("sensorInfo", options =>
+        {
+            options.DatabaseName = "sensify";
+        });
+    });
+}
+
+builder.Services.AddSingleton<IMongoPersistenceProvider>(services => new MongoPersistenceProvider(builder.Configuration["MONGO_CONNECTION_STRING"]!));
 
 var app = builder.Build();
 
@@ -16,17 +34,12 @@ var api = app.MapGroup("/api");
 
 api.MapGet("/", () => DateTimeOffset.UtcNow);
 
-api.MapPost("/record", async (ILoggerFactory loggerFactory, HttpRequest request /*[FromBody] Dictionary<string,object> body*/) =>
+api.MapPost("/record/{sensorId:required}", async (ILoggerFactory loggerFactory, IGrainFactory grainFactory, HttpRequest request, [FromRoute(Name= "sensorId")] string sensorId /*[FromBody] Dictionary<string,object> body*/) =>
 {
-   var logger = loggerFactory.CreateLogger("record");
-
-    logger.LogInformation("received data");
-
-    logger.LogInformation("ContentType: {@ContentType}", request.ContentType);
+   //var logger = loggerFactory.CreateLogger("record");
 
     var body = await new StreamReader(request.Body).ReadToEndAsync();
-
-    logger.LogInformation("Body: {@Body}", body);
+    await grainFactory.GetGrain<ISensor>(sensorId).UpdateMeasurementAsync(body);
 
     return Results.Ok();
 });

@@ -4,14 +4,13 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>534c7ae5-5cc1-4e0c-bc7a-987c32907b9f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+	<PackageReference Include="EnumToStringGenerator" Version="0.0.2-beta.4" PrivateAssets="All" />
     <PackageReference Include="Microsoft.Orleans.Server" Version="8.2.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Grains\" />
+    <PackageReference Include="Orleans.Providers.MongoDB" Version="8.1.0" />
   </ItemGroup>
 
 </Project>
