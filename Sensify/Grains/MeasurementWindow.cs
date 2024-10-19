@@ -9,8 +9,10 @@ public readonly record struct MeasurementWindow
     [Id(0)]
     public required MeasurementWindowType Type { get;  init; }
     [Id(1)]
-    public TimeSpan WindowDuration { get; }
+    public TimeSpan WindowDuration { get; init; }
     [Id(2)]
-    public int WindowSize { get; }
+    public int WindowSize { get; init; }
+    [Id(3)]
+    public bool Stream { get; init; }
 
 }

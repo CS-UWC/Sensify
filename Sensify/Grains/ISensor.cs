@@ -1,18 +1,27 @@
-﻿namespace Sensify.Grains;
+﻿using Orleans.Concurrency;
 
-[Alias("Sensify.Grains.ISensor`1")]
-public interface ISensor<TMeasurement> : IGrainWithStringKey, ISensor
+namespace Sensify.Grains;
+
+internal interface ISensor<TMeasurement> : ISensorMethods
 {
-    Task<TMeasurement> GetTypedMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default);
+    ValueTask<TMeasurement> GetTypedMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default);
 
 }
 
-public interface ISensor : IGrainWithStringKey
+[Alias("Sensify.Grains.ISensor")]
+public interface ISensor : IGrainWithStringKey, ISensorMethods
 {
-    Task<string> GetIdAsync();
-    Task<SensorInfo> GetSensorInfoAsync();
-    Task UpdateSensorInfoAsync(UpdateSensorInfo update);
-    Task UpdateMeasurementAsync(string hexPayload);
-    Task<Dictionary<object, object>> GetMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default);
 
+}
+
+public interface ISensorMethods
+{
+    [AlwaysInterleave]
+    ValueTask<string> GetIdAsync();
+    [AlwaysInterleave]
+    ValueTask<SensorInfo> GetSensorInfoAsync();
+    ValueTask UpdateSensorInfoAsync(UpdateSensorInfo update);
+    ValueTask UpdateMeasurementAsync(string hexPayload);
+    [AlwaysInterleave]
+    IAsyncEnumerable<object> GetMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default);
 }

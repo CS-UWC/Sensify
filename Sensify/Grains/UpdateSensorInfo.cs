@@ -5,11 +5,9 @@
 public record struct UpdateSensorInfo
 {
     [Id(0)]
-    public string Id { get; set; }
+    public SupportedSensorType SensorType { get; set; }
     [Id(1)]
-    public string SensorType { get; set; }
-    [Id(2)]
     public string SensorName { get; set; }
-    [Id(3)]
+    [Id(2)]
     public string PayloadDecoder { get; set; }
 }
