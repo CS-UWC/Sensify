@@ -1,6 +1,6 @@
 ﻿using Orleans.Concurrency;
 
-namespace Sensify.Grains;
+namespace Sensify.Grains.Senors.Common;
 
 internal interface ISensor<TMeasurement> : ISensorMethods
 {
@@ -21,7 +21,7 @@ public interface ISensorMethods
     [AlwaysInterleave]
     ValueTask<SensorInfo> GetSensorInfoAsync();
     ValueTask UpdateSensorInfoAsync(UpdateSensorInfo update);
-    ValueTask UpdateMeasurementAsync(string hexPayload);
+    ValueTask UpdateMeasurementAsync(RawSensorMeasurement raw);
     [AlwaysInterleave]
     IAsyncEnumerable<object> GetMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default);
 }

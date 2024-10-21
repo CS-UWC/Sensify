@@ -1,8 +1,9 @@
-﻿using Sensify.Extensions;
+﻿using Sensify.Decoders.Common;
+using Sensify.Extensions;
 using Sensify.Grains.ElsysSensorGrain;
 using Sensify.Persistence;
 
-namespace Sensify.Grains;
+namespace Sensify.Grains.Senors.Common;
 
 public sealed partial class GenericSensor : Grain, ISensor
 {
@@ -28,20 +29,29 @@ public sealed partial class GenericSensor : Grain, ISensor
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
-        if (_state.State is { Id: null } || string.IsNullOrWhiteSpace(_state.State?.Id))
+        if (_state.State is { Id: null } || string.IsNullOrWhiteSpace(_state.State?.Id?.Id))
         {
+            var id = SensorId.From(GrainContext.GrainId.Key.ToString()!);
             _state.State = new SensorInfo()
             {
-                Id = GrainContext.GrainId.Key.ToString()!
+                Id = id,
+                SensorType = id.SensorType
             };
 
             await _state.WriteStateAsync();
         }
 
-        if (_state.State is not { SensorType: SupportedSensorType.None })
+        if (_state.State.Id is { SensorType: SupportedSensorType.Generic } sid)
         {
-            _sensorMethods = LoadSensorMethods(_state.State.SensorType);
+            await base.OnActivateAsync(cancellationToken);
+            return;
         }
+
+        _sensorMethods = LoadSensorMethods(_state.State.Id.Value.SensorType);
+
+        _ = GrainFactory
+            .GetGrain<ISensorManagerGrain>(Guid.Empty)
+            .AddSensor(_state.State.Id.Value, this.AsReference<ISensor>());
         await base.OnActivateAsync(cancellationToken);
     }
 
@@ -61,15 +71,15 @@ public sealed partial class GenericSensor : Grain, ISensor
             .Else(static () => ValueTask.FromResult(string.Empty));
     }
 
-    public async ValueTask UpdateMeasurementAsync(string hexPayload)
+    public async ValueTask UpdateMeasurementAsync(RawSensorMeasurement raw)
     {
-        await _sensorMethods.WhenNotNull(x => x!.UpdateMeasurementAsync(hexPayload))
+        await _sensorMethods.WhenNotNull(x => x!.UpdateMeasurementAsync(raw))
             .Else(static () => ValueTask.CompletedTask);
     }
 
     public ValueTask<SensorInfo> GetSensorInfoAsync()
     {
-        return _sensorMethods.WhenNotNull(static x => x.GetSensorInfoAsync())
+        return _sensorMethods.WhenNotNull(static x => x!.GetSensorInfoAsync())
             .Else(static () => ValueTask.FromResult(SensorInfo.Empty));
     }
 

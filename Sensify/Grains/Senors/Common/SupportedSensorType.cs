@@ -1,10 +1,10 @@
 ﻿using EnumToStringGenerator;
 
-namespace Sensify.Grains;
+namespace Sensify.Grains.Senors.Common;
 
 [GenerateStrings]
 public enum SupportedSensorType
 {
-    None,
+    Generic,
     Elsys
 }

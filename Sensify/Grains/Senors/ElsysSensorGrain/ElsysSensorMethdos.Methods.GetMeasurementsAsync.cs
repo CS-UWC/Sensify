@@ -1,7 +1,7 @@
-﻿
-using MongoDB.Driver;
+﻿using MongoDB.Driver;
 using Sensify.Decoders.Elsys;
 using Sensify.Extensions;
+using Sensify.Grains.Senors.Common;
 using Sensify.Persistence;
 using System.Runtime.CompilerServices;
 
@@ -13,7 +13,7 @@ internal sealed partial class ElsysSensorMethods
     {
         List<FilterDefinition<SensorMeasurement<ElsysMeasurement>>> filters = [];
 
-        var sensorFilter = Builders<SensorMeasurement<ElsysMeasurement>>.Filter.Eq(x => x.SensorId, _state.State.Id);
+        var sensorFilter = Builders<SensorMeasurement<ElsysMeasurement>>.Filter.Eq(x => x.SensorId, _state.State.Id.ToString());
         filters.Add(sensorFilter);
 
         if(dateRange != SensorMeasurementDateRange.All)

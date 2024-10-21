@@ -1,4 +1,4 @@
-﻿namespace Sensify.Grains;
+﻿namespace Sensify.Grains.Senors.Common;
 
 [GenerateSerializer]
 [Alias("Sensify.Grains.SensorMeasurementDateRange")]

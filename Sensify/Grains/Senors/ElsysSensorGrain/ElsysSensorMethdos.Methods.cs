@@ -1,8 +1,6 @@
-﻿
-using MongoDB.Driver;
-using Orleans.Concurrency;
+﻿using MongoDB.Driver;
 using Sensify.Decoders.Elsys;
-using Sensify.Extensions;
+using Sensify.Grains.Senors.Common;
 using Sensify.Persistence;
 
 namespace Sensify.Grains.ElsysSensorGrain;
@@ -28,7 +26,7 @@ internal sealed partial class ElsysSensorMethods : ISensorMethods
 
     public ValueTask<string> GetIdAsync()
     {
-        return ValueTask.FromResult(_state.State.Id);
+        return ValueTask.FromResult(_state.State.Id.ToString()!);
     }
 
     public ValueTask<SensorInfo> GetSensorInfoAsync()
@@ -36,16 +34,16 @@ internal sealed partial class ElsysSensorMethods : ISensorMethods
         return ValueTask.FromResult(_state.State);
     }
 
-    public async ValueTask UpdateMeasurementAsync(string hexPayload)
+    public async ValueTask UpdateMeasurementAsync(RawSensorMeasurement raw)
     {
         //Console.WriteLine($"hexPayload: {hexPayload}");
 
-        var data = _decoder.Decode(hexPayload);
+        var data = _decoder.Decode(raw.HexPayload);
 
         SensorMeasurement<ElsysMeasurement> sensorData = new()
         {
-            SensorId = _state.State.Id,
-            Timestamp = DateTime.UtcNow,
+            SensorId = _state.State.Id.ToString()!,
+            Timestamp = raw.Timestamp ?? DateTime.UtcNow,
             Measurement = data
         };
 
@@ -59,8 +57,8 @@ internal sealed partial class ElsysSensorMethods : ISensorMethods
         _state.State = state with
         {
             SensorName = update.SensorName,
-            PayloadDecoder = update.PayloadDecoder,
-            SensorType = update.SensorType,
+            PayloadDecoder = update.PayloadDecoder ?? state.PayloadDecoder,
+            SensorType = update.SensorType ?? state.SensorType,
         };
 
         await _state.WriteStateAsync();

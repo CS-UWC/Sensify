@@ -6,7 +6,7 @@ using Sensify.Extensions;
 
 namespace Sensify.Decoders.Common;
 
-internal class MongoMeasurementUnitSerializer : EnumSerializer<MeasurementUnit>
+internal sealed class MongoMeasurementUnitSerializer : EnumSerializer<MeasurementUnit>
 {
 
     public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, MeasurementUnit value)
