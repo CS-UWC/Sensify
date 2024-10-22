@@ -20,4 +20,3 @@ public record GenericMeasurement<TValue>
 
     public GenericMeasurement(TValue value) : this(value, MeasurementUnit.None) { }
 }
-
