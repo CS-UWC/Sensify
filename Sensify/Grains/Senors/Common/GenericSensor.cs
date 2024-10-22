@@ -1,6 +1,7 @@
 ﻿using Sensify.Decoders.Common;
 using Sensify.Extensions;
 using Sensify.Grains.ElsysSensorGrain;
+using Sensify.Grains.NetvoxSensorGrain;
 using Sensify.Persistence;
 
 namespace Sensify.Grains.Senors.Common;
@@ -60,6 +61,7 @@ public sealed partial class GenericSensor : Grain, ISensor
         return sensorType switch
         {
             SupportedSensorType.Elsys => new ElsysSensorMethods(_state, _persistenceProvider, GrainContext),
+            SupportedSensorType.NetVox => new NetvoxSensorMethods(_state, _persistenceProvider, GrainContext),
             _ => null,
 
         };

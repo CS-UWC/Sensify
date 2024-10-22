@@ -6,5 +6,7 @@ namespace Sensify.Grains.Senors.Common;
 public enum SupportedSensorType
 {
     Generic,
-    Elsys
+    Elsys,
+    NetVox,
+    Synetica
 }
