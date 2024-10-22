@@ -1,5 +1,6 @@
 ﻿using MongoDB.Bson;
 using MongoDB.Driver;
+using Orleans;
 using Orleans.Concurrency;
 using Sensify.Decoders.Common;
 using Sensify.Extensions;
@@ -19,9 +20,13 @@ public class SensorManagerGrain : Grain, ISensorManagerGrain
     private readonly IFindFluent<BsonDocument, BsonValue> _findFluent;
 
     private readonly SemaphoreSlim _semaphore = new(1);
+    private readonly ILogger<SensorManagerGrain> _logger;
+
+    private IGrainTimer? _grainTimer;
 
     public SensorManagerGrain(
         IMongoPersistenceProvider persistenceProvider,
+        ILogger<SensorManagerGrain> logger,
         IGrainContext grainContext,
         IGrainRuntime? grainRuntime = null) 
         : base(grainContext, grainRuntime)
@@ -29,15 +34,22 @@ public class SensorManagerGrain : Grain, ISensorManagerGrain
         _sensorsDb = persistenceProvider.GetCollection<BsonDocument>("GrainssensorInfo");
         _findFluent = _sensorsDb.Find(Builders<BsonDocument>.Filter.Empty)
             .Project(Builders<BsonDocument>.Projection.Expression(x => x["_id"]));
+        _logger = logger;
     }
 
-    private async ValueTask GetSensorIdsFromDb()
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
-        if (_sensors is { Count: > 0 }) return;
+        _grainTimer = this.RegisterGrainTimer(OnTimer, new GrainTimerCreationOptions(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)));
+        await base.OnActivateAsync(cancellationToken);
+    }
+
+    private async ValueTask GetSensorIdsFromDb(bool isActivate = false)
+    {
+        if (!isActivate && _sensors is { Count: > 0 }) return;
 
         await _semaphore.WaitAsync();
 
-        if (_sensors is { Count: > 0 }) return;
+        if (!isActivate &&  _sensors is { Count: > 0 }) return;
         try
         {
             await foreach (var v in _findFluent.GetAsyncEnumerable())
@@ -47,7 +59,11 @@ public class SensorManagerGrain : Grain, ISensorManagerGrain
                 _sensors.GetOrAdd(sensorId, GrainFactory.GetGrain<ISensor>(sensorId.ToString()).AsReference<ISensor>());
             };
 
-        }finally { _semaphore.Release(); }
+        }catch(Exception e)
+        {
+            _logger.LogError(e, "Something went wrong loading the sensors");
+        }
+        finally { _semaphore.Release(); }
     }
 
     private static bool TryParseSensorId(ReadOnlySpan<char> rawIdValue, out SensorId sensorId)
@@ -86,6 +102,13 @@ public class SensorManagerGrain : Grain, ISensorManagerGrain
             .ToList();
 
         return await Task.WhenAll(sensorListTask);
+    }
+
+    public async Task OnTimer()
+    {
+        await GetSensorIdsFromDb(true);
+        _grainTimer?.Dispose();
+        _grainTimer = null;
     }
 }
 
