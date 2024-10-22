@@ -245,6 +245,10 @@ decode("0100e202290400270506060308070d62")
 
 #!csharp
 
+decode("03bf01fe070e350b000000510d000f00")
+
+#!csharp
+
 dataUp.payload.ToHexBytes().ToArray()
 
 #!csharp

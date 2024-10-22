@@ -1,0 +1,196 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"languageName":"csharp","name":"csharp"}]}}
+
+#!csharp
+
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+
+#!csharp
+
+public static ReadOnlySpan<byte> ToHexBytes(this ReadOnlySpan<char> str){
+
+    if(str.Length % 2 != 0 ) throw new ArgumentOutOfRangeException(nameof(str), str.ToString(), "Not a valid hex string.");
+    var length = str.Length;
+    Span<byte> results = new byte[length/2];
+
+    for(var i = 0; i < length; i+=2){
+        
+        var char1 = str[i];
+        var char2 = str[i+1];
+
+        ref var value = ref results[i/2];
+
+        value = char1 switch{
+            >= '0' and <= '9' => (byte)(char1 - '0'),
+            >= 'a' and <= 'f' => (byte)(char1 - 'a' + 10),
+            >= 'A' and <= 'F' => (byte)(char1 - 'A' + 10),
+            _ => throw new InvalidHexCharException(char1)
+        };
+
+        value = (byte)(value << 4);
+        
+        value |= char2 switch{
+            >= '0' and <= '9' => (byte)(char2 - '0'),
+            >= 'a' and <= 'f' => (byte)(char2 - 'a' + 10),
+            >= 'A' and <= 'F' => (byte)(char2 - 'A' + 10),
+            _ => throw new InvalidHexCharException(char2)
+        };
+
+    }
+
+    return results;
+
+}
+
+public static ReadOnlySpan<byte> ToHexBytes(this string str) => str.AsSpan().ToHexBytes();
+
+public class InvalidHexCharException : Exception
+{
+    public Char InvalidChar {get;}
+
+    public InvalidHexCharException(char ch){
+        InvalidChar = ch;
+    }
+}
+
+#!csharp
+
+public enum DataUpType: byte {
+    R718E_FirmwareInfo = 0x00,
+    R718E_Acceleration = 0x01,
+    R718E_Velocity = 0x02,
+    R718CK2_Temperature = 0x1,
+    R311A_Swicth = 0x1
+}
+
+public enum DeviceType: byte {
+    R311A = 0x02,
+    R718CK2 = 0x16,
+    R718CT2 = 0x17,
+    R718CN2_R718CR2 = 0x18,
+    R718E = 0x1C
+}
+
+#!csharp
+
+IDictionary<string, object> decodeR718CK2ToR718CN2_R718CR2(ReadOnlySpan<byte> data){
+
+    var result = new Dictionary<string, object>();
+
+    switch((DataUpType)data[0]){
+        case DataUpType.R718CK2_Temperature:
+
+        var battery = data[1] * 0.1f; // volts
+        var temperature1 = ((short)((data[2] << 8) | data[3])) * 0.1f; // celsius
+        var temperature2 = ((short)((data[4] << 8) | data[5])) * 0.1f; // celsius
+        result["battery"] = battery;
+        result["temperature1"] = temperature1;
+        result["temperature2"] = temperature2;
+
+        break;
+        default:
+        break;
+    }
+
+    return result;
+}
+
+IDictionary<string, object> decodeR311A(ReadOnlySpan<byte> data){
+
+    var result = new Dictionary<string, object>();
+
+    switch((DataUpType)data[0]){
+        case DataUpType.R311A_Swicth:
+
+        var battery = data[1] * 0.1f; // volts
+        var contact = data[2] == 1;
+        result["battery"] = battery;
+        result["contact"] = contact;
+
+        break;
+        default:
+        break;
+    }
+
+    return result;
+}
+
+IDictionary<string, object> decodeR718E(ReadOnlySpan<byte> data){
+
+    var result = new Dictionary<string, object>();
+
+    switch((DataUpType)data[0]){
+        case DataUpType.R718E_Acceleration:
+
+        var battery = data[1] * 0.1f; // volts
+        var accelerationX = Unsafe.BitCast<int,float>(((data[3] << 24) | (data[2] << 16))); // m/s2
+        var accelerationY = Unsafe.BitCast<int,float>(((data[5] << 24) | (data[4] << 16))); // m/s2
+        var accelerationZ = Unsafe.BitCast<int,float>(((data[7] << 24) | (data[6] << 16))); // m/s2
+
+        result["battery"] = battery;
+        result["accelerationX"] = accelerationX;
+        result["accelerationY"] = accelerationY;
+        result["accelerationZ"] = accelerationZ;
+
+        break;
+
+        case DataUpType.R718E_Velocity:
+
+        var velocityX = Unsafe.BitCast<int,float>(((data[2] << 24) | (data[1] << 16))); // m/s2
+        var velocityY = Unsafe.BitCast<int,float>(((data[4] << 24) | (data[3] << 16))); // m/s2
+        var velocityZ = Unsafe.BitCast<int,float>(((data[6] << 24) | (data[5] << 16))); // m/s2
+        var temperature = ((short)((data[7] << 8) | data[8])) * 0.1f; // celsius
+
+        result["velocityX"] = velocityX;
+        result["velocityY"] = velocityY;
+        result["velocityZ"] = velocityZ;
+        result["temperature"] = temperature;
+
+        break;
+
+        default:
+        break;
+    }
+
+
+    return result;
+}
+
+
+
+IDictionary<string, object> decode(string payload){
+
+    // first byte is device version
+    // second byte is device type
+    // 
+    var data = payload.ToHexBytes();
+
+    return (DeviceType)data[1] switch {
+        DeviceType.R311A => decodeR311A(data[2..]),
+        >= DeviceType.R718CK2 and <= DeviceType.R718CN2_R718CR2 => decodeR718CK2ToR718CN2_R718CR2(data[2..]),
+        DeviceType.R718E => decodeR718E(data[2..]),
+        _ => null
+    };
+}
+
+#!csharp
+
+var accelPacket = "011c01242541303f114100";
+decode(accelPacket)
+
+#!csharp
+
+var velPacket = "011C0212422B42C7440107";
+decode(velPacket)
+
+#!csharp
+
+var tempPacket = "0117019F01220122000000";
+decode(tempPacket)
+
+#!csharp
+
+var switchPacket = "0102011C01000000000000";
+decode(switchPacket)
