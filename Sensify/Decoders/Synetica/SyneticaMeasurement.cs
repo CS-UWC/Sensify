@@ -1,5 +1,8 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
 using Sensify.Decoders.Common;
+using Sensify.Decoders.Netvox;
+using Sensify.Extensions;
+using System.Numerics;
 
 namespace Sensify.Decoders.Synetica;
 
@@ -7,7 +10,7 @@ namespace Sensify.Decoders.Synetica;
 [BsonIgnoreExtraElements]
 [BsonNoId]
 [Alias("Sensify.Decoders.Synetica.SyneticaMeasurement")]
-public record SyneticaMeasurement
+public partial record SyneticaMeasurement : IAdditionOperators<SyneticaMeasurement, SyneticaMeasurement, SyneticaMeasurement>
 {
     [Id(0)]
     [BsonIgnoreIfDefault]
