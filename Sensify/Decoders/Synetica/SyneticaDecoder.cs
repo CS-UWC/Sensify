@@ -15,7 +15,6 @@ public sealed class SyneticaDecoder
 
         for (int i = 0; i < bytes.Length; i++)
         {
-            Console.WriteLine(bytes[i]);
             switch ((SyneticaDataUpType)bytes[i])
             {
                 case SyneticaDataUpType.Temp:
