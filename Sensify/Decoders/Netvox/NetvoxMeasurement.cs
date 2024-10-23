@@ -22,12 +22,16 @@ public partial record NetvoxMeasurement : IAdditionOperators<NetvoxMeasurement, 
     [BsonIgnoreIfDefault]
     [Id(3)]
     public GenericMeasurement<float>? Temperature { get; set; }
+    [BsonIgnoreIfDefault]
     [Id(4)]
     public GenericMeasurement<float>? Temperature1 { get; set; }
+    [BsonIgnoreIfDefault]
     [Id(5)]
     public GenericMeasurement<float>? Temperature2 { get; set; }
+    [BsonIgnoreIfDefault]
     [Id(6)]
     public GenericMeasurement<float>? Temperature3 { get; set; }
+    [BsonIgnoreIfDefault]
     [Id(7)]
     public GenericMeasurement<Switch>? Contact { get; set; }
 
