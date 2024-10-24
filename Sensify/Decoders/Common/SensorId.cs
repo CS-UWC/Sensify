@@ -1,5 +1,5 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
-using Sensify.Grains.Senors.Common;
+using Sensify.Grains.Sensors.Common;
 
 namespace Sensify.Decoders.Common;
 

@@ -1,14 +1,8 @@
 ﻿using Orleans.Concurrency;
 
-namespace Sensify.Grains.Senors.Common;
+namespace Sensify.Grains.Sensors.Common;
 
-internal interface ISensor<TMeasurement> : ISensorMethods
-{
-    ValueTask<TMeasurement> GetTypedMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default);
-
-}
-
-[Alias("Sensify.Grains.ISensor")]
+[Alias("Sensify.Grains.Sensors.Common.ISensor")]
 public interface ISensor : IGrainWithStringKey, ISensorMethods
 {
 

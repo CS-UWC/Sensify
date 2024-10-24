@@ -1,6 +1,6 @@
 ﻿using EnumToStringGenerator;
 
-namespace Sensify.Grains.Senors.Common;
+namespace Sensify.Grains.Sensors.Common;
 
 [GenerateStrings]
 public enum SupportedSensorType

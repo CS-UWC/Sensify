@@ -1,4 +1,4 @@
-﻿namespace Sensify.Grains.Senors.Common;
+﻿namespace Sensify.Grains.Sensors.Common;
 
 public enum MeasurementWindowType
 {

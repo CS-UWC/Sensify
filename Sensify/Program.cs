@@ -3,7 +3,7 @@ using Orleans;
 using Sensify.Decoders.Common;
 using Sensify.Decoders.Elsys;
 using Sensify.Grains;
-using Sensify.Grains.Senors.Common;
+using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
 using Sensify.Workers.Wanesy;
 using System.Text.Json.Serialization;

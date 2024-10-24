@@ -1,6 +1,6 @@
 ﻿using MongoDB.Driver;
 using Sensify.Decoders.Synetica;
-using Sensify.Grains.Senors.Common;
+using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
 
 namespace Sensify.Grains.SyneticaSensorGrain;

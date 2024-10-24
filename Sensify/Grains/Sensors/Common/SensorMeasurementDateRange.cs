@@ -1,7 +1,7 @@
-﻿namespace Sensify.Grains.Senors.Common;
+﻿namespace Sensify.Grains.Sensors.Common;
 
 [GenerateSerializer]
-[Alias("Sensify.Grains.SensorMeasurementDateRange")]
+[Alias("Sensify.Grains.Sensors.Common.SensorMeasurementDateRange")]
 public record struct SensorMeasurementDateRange(DateTime Start, DateTime End)
 {
     public static readonly SensorMeasurementDateRange All = default;

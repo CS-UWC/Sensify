@@ -3,7 +3,7 @@ using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson;
 using Sensify.Extensions;
-using Sensify.Grains.Senors.Common;
+using Sensify.Grains.Sensors.Common;
 
 namespace Sensify.Decoders.Common;
 

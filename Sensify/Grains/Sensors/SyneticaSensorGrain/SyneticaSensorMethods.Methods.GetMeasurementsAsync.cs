@@ -2,7 +2,7 @@
 using Sensify.Decoders.Netvox;
 using Sensify.Decoders.Synetica;
 using Sensify.Extensions;
-using Sensify.Grains.Senors.Common;
+using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
 using System.Runtime.CompilerServices;
 

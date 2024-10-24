@@ -1,7 +1,7 @@
-﻿namespace Sensify.Grains.Senors.Common;
+﻿namespace Sensify.Grains.Sensors.Common;
 
 [GenerateSerializer]
-[Alias("Sensify.Grains.UpdateSensorInfo")]
+[Alias("Sensify.Grains.Sensors.Common.UpdateSensorInfo")]
 public record struct UpdateSensorInfo
 {
     [Id(0)]

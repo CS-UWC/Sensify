@@ -5,7 +5,7 @@ using Sensify.Grains.NetvoxSensorGrain;
 using Sensify.Grains.SyneticaSensorGrain;
 using Sensify.Persistence;
 
-namespace Sensify.Grains.Senors.Common;
+namespace Sensify.Grains.Sensors.Common;
 
 public sealed partial class GenericSensor : Grain, ISensor
 {

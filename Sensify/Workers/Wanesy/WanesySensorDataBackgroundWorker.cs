@@ -1,7 +1,7 @@
 ﻿using EnumToStringGenerator;
 using Microsoft.Extensions.Options;
 using Sensify.Grains;
-using Sensify.Grains.Senors.Common;
+using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
 using System.Net.Http.Headers;
 using System.Net.Mime;

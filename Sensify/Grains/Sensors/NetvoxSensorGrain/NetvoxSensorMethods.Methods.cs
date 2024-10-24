@@ -1,19 +1,19 @@
 ﻿using MongoDB.Driver;
-using Sensify.Decoders.Elsys;
-using Sensify.Grains.Senors.Common;
+using Sensify.Decoders.Netvox;
+using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
 
-namespace Sensify.Grains.ElsysSensorGrain;
+namespace Sensify.Grains.NetvoxSensorGrain;
 
-internal sealed partial class ElsysSensorMethods : ISensorMethods
+internal sealed partial class NetvoxSensorMethods : ISensorMethods
 {
     private readonly IPersistentState<SensorInfo> _state;
     private readonly IMongoPersistenceProvider _persistenceProvider;
     private readonly IGrainContext _grainContext;
-    private readonly ElsysDecoder _decoder = new();
-    private readonly IMongoCollection<SensorMeasurement<ElsysMeasurement>> _measurements;
+    private readonly NetvoxDecoder _decoder = new();
+    private readonly IMongoCollection<SensorMeasurement<NetvoxMeasurement>> _measurements;
 
-    public ElsysSensorMethods(
+    public NetvoxSensorMethods(
         IPersistentState<SensorInfo> state,
         IMongoPersistenceProvider persistenceProvider,
         IGrainContext grainContext)
@@ -21,7 +21,7 @@ internal sealed partial class ElsysSensorMethods : ISensorMethods
         _state = state;
         _persistenceProvider = persistenceProvider;
         _grainContext = grainContext;
-        _measurements = _persistenceProvider.GetCollection<SensorMeasurement<ElsysMeasurement>>("sensorData");
+        _measurements = _persistenceProvider.GetCollection<SensorMeasurement<NetvoxMeasurement>>("sensorData");
     }
 
     public ValueTask<string> GetIdAsync()
@@ -40,7 +40,9 @@ internal sealed partial class ElsysSensorMethods : ISensorMethods
 
         var data = _decoder.Decode(raw.HexPayload);
 
-        SensorMeasurement<ElsysMeasurement> sensorData = new()
+        if (data is null) return;
+
+        SensorMeasurement<NetvoxMeasurement> sensorData = new()
         {
             SensorId = _state.State.Id.ToString()!,
             Timestamp = raw.Timestamp ?? DateTime.UtcNow,

@@ -1,7 +1,7 @@
-﻿namespace Sensify.Grains.Senors.Common;
+﻿namespace Sensify.Grains.Sensors.Common;
 
 [GenerateSerializer]
-[Alias("Sensify.Grains.MeasurementWindow")]
+[Alias("Sensify.Grains.Sensors.Common.MeasurementWindow")]
 public readonly record struct MeasurementWindow
 {
     public static readonly MeasurementWindow None = default;

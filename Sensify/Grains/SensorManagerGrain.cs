@@ -4,7 +4,7 @@ using Orleans;
 using Orleans.Concurrency;
 using Sensify.Decoders.Common;
 using Sensify.Extensions;
-using Sensify.Grains.Senors.Common;
+using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
 using System.Collections.Concurrent;
 

@@ -1,7 +1,7 @@
-﻿namespace Sensify.Grains.Senors.Common;
+﻿namespace Sensify.Grains.Sensors.Common;
 
 [GenerateSerializer]
-[Alias("Sensify.Grains.RawSensorMeasurement")]
+[Alias("Sensify.Grains.Sensors.Common.RawSensorMeasurement")]
 public record struct RawSensorMeasurement
 {
     public RawSensorMeasurement() { }

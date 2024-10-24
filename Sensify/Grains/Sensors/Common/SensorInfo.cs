@@ -1,13 +1,15 @@
 ﻿using MongoDB.Bson.Serialization.Attributes;
 using Sensify.Decoders.Common;
+using System.Text.Json.Serialization;
 
-namespace Sensify.Grains.Senors.Common;
+namespace Sensify.Grains.Sensors.Common;
 
 [GenerateSerializer]
-[Alias("Sensify.Grains.SensorInfo")]
+[Alias("Sensify.Grains.Sensors.Common.SensorInfo")]
 public sealed record SensorInfo
 {
     [Id(0)]
+    [JsonConverter(typeof(JsonConverterNullableSensorId))]
     public SensorId? Id { get; set; } = default;
     [Id(1)]
     [BsonSerializer(typeof(MongoSupportedSensorTypeSerializer))]
