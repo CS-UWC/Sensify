@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Sensify.Extensions;
 
@@ -23,4 +24,8 @@ public static class MathExtensions
     {
         return @this < other ? @this : other;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float BitCastAsFloat(this ReadOnlySpan<byte> bytes)
+        => Unsafe.BitCast<int, float>((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]);
 }

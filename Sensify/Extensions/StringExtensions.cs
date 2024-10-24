@@ -40,7 +40,7 @@ public static class StringExtensions
 
     public class InvalidHexCharException : Exception
     {
-        public Char InvalidChar {get;}
+        public char InvalidChar {get;}
 
         public InvalidHexCharException(char ch){
             InvalidChar = ch;

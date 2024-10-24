@@ -1,0 +1,261 @@
+#!meta
+
+{"kernelInfo":{"defaultKernelName":"csharp","items":[{"aliases":[],"languageName":"csharp","name":"csharp"}]}}
+
+#!csharp
+
+using System.Runtime.CompilerServices;
+using System.Numerics;
+using System.Text.Json.Serialization;
+
+#!csharp
+
+public static class MathExtensions
+{
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float BitCastAsFloat(ReadOnlySpan<byte> bytes)
+        => Unsafe.BitCast<int, float>((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]);
+}
+
+#!csharp
+
+public static class StringExtensions
+{
+    public static ReadOnlySpan<byte> ToHexBytes(ReadOnlySpan<char> str){
+
+        if(str.Length % 2 != 0 ) throw new ArgumentOutOfRangeException(nameof(str), str.ToString(), "Not a valid hex string.");
+        var length = str.Length;
+        Span<byte> results = new byte[length/2];
+
+        for(var i = 0; i < length; i+=2){
+            
+            var char1 = str[i];
+            var char2 = str[i+1];
+
+            ref var value = ref results[i/2];
+
+            value = char1 switch{
+                >= '0' and <= '9' => (byte)(char1 - '0'),
+                >= 'a' and <= 'f' => (byte)(char1 - 'a' + 10),
+                >= 'A' and <= 'F' => (byte)(char1 - 'A' + 10),
+                _ => throw new InvalidHexCharException(char1)
+            };
+
+            value = (byte)(value << 4);
+            
+            value |= char2 switch{
+                >= '0' and <= '9' => (byte)(char2 - '0'),
+                >= 'a' and <= 'f' => (byte)(char2 - 'a' + 10),
+                >= 'A' and <= 'F' => (byte)(char2 - 'A' + 10),
+                _ => throw new InvalidHexCharException(char2)
+            };
+
+        }
+
+        return results;
+    }
+
+    public static ReadOnlySpan<byte> ToHexBytes(string str) => ToHexBytes(str.AsSpan());
+
+    public class InvalidHexCharException : Exception
+    {
+        public char InvalidChar {get;}
+
+        public InvalidHexCharException(char ch){
+            InvalidChar = ch;
+        }
+    }
+}
+
+#!csharp
+
+public enum MeasurementUnit
+{
+    [JsonPropertyName("°C")]
+    None,
+    [JsonPropertyName("°C")]
+    Celsius,
+    [JsonPropertyName("%")]
+    Percentage,
+    GForce,
+    Lux,
+    [JsonPropertyName("V")]
+    Volts,
+    [JsonPropertyName("mV")]
+    MilliVolts,
+    [JsonPropertyName("m")]
+    Meters,
+    [JsonPropertyName("mm")]
+    Millimeters,
+    [JsonPropertyName("mm/s")]
+    MillimetersPerSecond,
+    [JsonPropertyName("m/s^2")]
+    MetersPerSecond2,
+    [JsonPropertyName("hPa")]
+    Hectopascal,
+    [JsonPropertyName("uV")]
+    UV,
+    [JsonPropertyName("Ppm")]
+    PartsPerMillion,
+    [JsonPropertyName("Ppb")]
+    PartsPerBillion,
+    Millibar,
+    IaqIndex,
+    UgPerM3,
+    Count,
+    MilliSeconds,
+    Seconds,
+    Decibels,
+    DecibelMilliwatts,
+    MicroVolts,
+    KiloOhms,
+    MicrogramsPerCubicMeter,
+    MilliAmperes,
+    Amperes,
+    Pascal
+
+}
+
+#!csharp
+
+public record GenericMeasurement<TValue>
+{
+    public TValue Value { get; init; }
+    public MeasurementUnit Unit { get; init; }
+    public GenericMeasurement(TValue value, MeasurementUnit unit)
+    {
+        Value = value;
+        Unit = unit;
+    }
+
+    public GenericMeasurement(TValue value) : this(value, MeasurementUnit.None) { }
+}
+
+#!csharp
+
+public partial record SyneticaMeasurement
+{
+    
+    public GenericMeasurement<float>? Temperature { get; set; }
+    
+    public GenericMeasurement<byte>? Humidity { get; set; }
+    
+    public GenericMeasurement<ushort>? AmbientLight { get; set; }
+    
+    public GenericMeasurement<ushort>? Pressure { get; set; }
+    
+    public GenericMeasurement<ushort>? VolatileOrganicCompounds { get; set; }
+    
+    public GenericMeasurement<float>? Bvoc { get; set; }
+    
+    public GenericMeasurement<float>? Co2ePpm { get; set; }
+    
+    public GenericMeasurement<float>? SoundMin { get; internal set; }
+    
+    public GenericMeasurement<float>? SoundAvg { get; internal set; }
+    
+    public GenericMeasurement<float>? SoundMax { get; internal set; }
+    
+    public GenericMeasurement<float>? BattVolt { get; set; }
+    
+}
+
+#!csharp
+
+public enum SyneticaDataUpType : byte
+{
+    Temperature = 0x01,
+    Humidity = 0x02,
+    AmbientLight = 0x03,
+    Pressure = 0x04,
+    VolatileOrganicCompounds = 0x05,
+    Voc = 0x12,
+    Co2e = 0x3F,
+    BattVolt = 0x42,
+    SoundMin = 0x50,
+    SoundAvg = 0x51,
+    SoundMax = 0x52
+}
+
+#!csharp
+
+public sealed class SyneticaDecoder
+{
+    public SyneticaMeasurement Decode(string payload) => Decode(StringExtensions.ToHexBytes(payload));
+
+    public SyneticaMeasurement Decode(ReadOnlySpan<byte> bytes)
+    {
+        var result = new SyneticaMeasurement();
+
+
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            switch ((SyneticaDataUpType)bytes[i])
+            {
+                case SyneticaDataUpType.Temperature:
+
+                    result.Temperature = new((short)((bytes[i + 1] << 8) | (bytes[i + 2])) / 10f, MeasurementUnit.Celsius);
+                    i += 2;
+                    break;
+
+                case SyneticaDataUpType.Humidity:
+                    result.Humidity = new(bytes[i + 1], MeasurementUnit.Percentage);
+                    i += 1;
+                    break;
+
+                case SyneticaDataUpType.AmbientLight:
+                    result.AmbientLight = new((ushort)((bytes[i + 1] << 8) | bytes[i + 2]), MeasurementUnit.Lux);
+                    i += 2;
+                    break;
+                case SyneticaDataUpType.Pressure:
+                    result.Pressure = new((ushort)((bytes[i + 1] << 8) | bytes[i + 2]), MeasurementUnit.Millibar);
+                    i += 2;
+                    break;
+                case SyneticaDataUpType.VolatileOrganicCompounds:
+                    result.VolatileOrganicCompounds = new((ushort)((bytes[i + 1] << 8) | bytes[i + 2]));
+                    i += 2;
+                    break;
+                case SyneticaDataUpType.Voc:
+                    result.Bvoc = new(MathExtensions.BitCastAsFloat(bytes[(i + 1)..]), MeasurementUnit.PartsPerMillion);
+                    i += 4;
+                    break;
+                case SyneticaDataUpType.Co2e:
+                    result.Co2ePpm = new(MathExtensions.BitCastAsFloat(bytes[(i + 1)..]), MeasurementUnit.PartsPerMillion);
+                    i += 4;
+                    break;
+                case SyneticaDataUpType.SoundMin:
+                    result.SoundMin = new(MathExtensions.BitCastAsFloat(bytes[(i + 1)..]), MeasurementUnit.Decibels);
+                    i += 4;
+                    break;
+                case SyneticaDataUpType.SoundAvg:
+                    result.SoundAvg = new(MathExtensions.BitCastAsFloat(bytes[(i + 1)..]), MeasurementUnit.Decibels);
+                    i += 4;
+                    break;
+                case SyneticaDataUpType.SoundMax:
+                    result.SoundMax = new(MathExtensions.BitCastAsFloat(bytes[(i + 1)..]), MeasurementUnit.Decibels);
+                    i += 4;
+                    break;
+
+                case SyneticaDataUpType.BattVolt:
+                    result.BattVolt = new(((ushort)((bytes[i + 1] << 8) | bytes[i + 2])) / 1000f, MeasurementUnit.Volts);
+                    i += 2;
+                    break;
+
+                default:
+                    i = bytes.Length; // something is wrong with data or end of data
+                    break;
+            }
+        }
+
+        return result;
+    }
+
+}
+
+#!csharp
+
+var decoder = new SyneticaDecoder();
+
+#!csharp
+
+decoder.Decode("0100e602310300000403ee050056123fa3491f3f4459669050422687de51423fbb1a524251b5a6420cef")

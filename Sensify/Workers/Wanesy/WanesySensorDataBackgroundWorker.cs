@@ -120,6 +120,7 @@ internal class WanesySensorDataBackgroundWorker : BackgroundService
             {
                 // token expired or failed to login
 
+                loginResponse = null;
                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken); // wait 1 minute and try again
                 continue;
             }
@@ -167,7 +168,7 @@ internal class WanesySensorDataBackgroundWorker : BackgroundService
             {
                 // no data
 
-                await Task.Delay(TimeSpan.FromMinutes(_random.Next(25, 35) / 5.0), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(_random.Next(3, 7)), stoppingToken);
                 continue;
             }
 
@@ -214,7 +215,7 @@ internal class WanesySensorDataBackgroundWorker : BackgroundService
                 // wait a bit longer for new real-timer data
                 // when e have reached the end.
 
-                TimeSpan wait = query.Page > response.nbPages ? TimeSpan.FromMinutes(5) : TimeSpan.FromSeconds(_random.Next(5, 50) / 5f);
+                TimeSpan wait = query.Page > response.nbPages ? TimeSpan.FromSeconds(30) : TimeSpan.FromSeconds(_random.Next(5, 50) / 5f);
 
                 await Task.Delay(wait, stoppingToken);
 
