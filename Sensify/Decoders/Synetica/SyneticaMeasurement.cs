@@ -30,7 +30,7 @@ public partial record SyneticaMeasurement : IAdditionOperators<SyneticaMeasureme
     public GenericMeasurement<float>? Bvoc { get; set; }
     [BsonIgnoreIfDefault]
     [Id(6)]
-    public GenericMeasurement<float>? Co2ePpm { get; set; }
+    public GenericMeasurement<float>? Co2e { get; set; }
     [BsonIgnoreIfDefault]
     [Id(7)]
     public GenericMeasurement<float>? SoundMin { get; internal set; }

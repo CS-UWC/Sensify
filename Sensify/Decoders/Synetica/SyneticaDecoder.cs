@@ -44,7 +44,7 @@ public sealed class SyneticaDecoder
                     i += 4;
                     break;
                 case SyneticaDataUpType.Co2e:
-                    result.Co2ePpm = new(bytes[(i + 1)..].BitCastAsFloat(), MeasurementUnit.PartsPerMillion);
+                    result.Co2e = new(bytes[(i + 1)..].BitCastAsFloat(), MeasurementUnit.PartsPerMillion);
                     i += 4;
                     break;
                 case SyneticaDataUpType.SoundMin:
