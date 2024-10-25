@@ -22,6 +22,7 @@ public sealed class NetvoxDecoder
         {
             >= NetvoxDeviceType.R718CK2 and <= NetvoxDeviceType.R718CN2_R718CR2 => DecodeR718CK2ToR718CN2_R718CR2(data[2..]),
             NetvoxDeviceType.R718E => DecodeR718E(data[2..]),
+            NetvoxDeviceType.R311A => DecodeR311A(data[2..]),
             _ => null
         };
     }
