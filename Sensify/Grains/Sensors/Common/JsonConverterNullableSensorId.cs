@@ -19,7 +19,11 @@ public sealed class JsonConverterNullableSensorId : JsonConverter<SensorId?>
 
     public override void Write(Utf8JsonWriter writer, SensorId? value, JsonSerializerOptions options)
     {
-        throw new NotImplementedException();
+        if (value is null) writer.WriteNullValue();
+        else
+        {
+            writer.WriteStringValue(value.Value.ToString());
+        }
     }
 
     public sealed class InvalidSensorIdJsonException(JsonTokenType expected, JsonTokenType found) 

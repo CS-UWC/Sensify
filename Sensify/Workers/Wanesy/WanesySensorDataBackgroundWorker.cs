@@ -146,7 +146,7 @@ internal class WanesySensorDataBackgroundWorker : BackgroundService
 
                 SearchQuery sq = new( Operand: "endDevice.devEui", Operation: SearchOperation.In, Values: [.. deviceEuisMap.Keys]);
 
-                query = new DataUpQuery("-recvTime", 1, 40, sq);
+                query = new DataUpQuery("+recvTime", ["payload", "endDevice", "recvTime"], 1, 40, sq);
 
             }
 
@@ -314,13 +314,15 @@ internal record SearchQuery(
             """;
         }
 
-        return HttpUtility.UrlEncode(json);
+        return json;
+        //return HttpUtility.UrlEncode(json);
 
         static string JsonString(string st) => $"\"{st}\"";
     }
 }
 internal record DataUpQuery(
     string Sort,
+    List<string> Fields,
     uint Page,
     uint PageSize,
     SearchQuery? Search = default
@@ -329,12 +331,37 @@ internal record DataUpQuery(
 
     public string ToQueryString()
     {
-        if(Search is null)
+        var queryBuilder = new StringBuilder();
+
+        if (!string.IsNullOrWhiteSpace(Sort))
         {
-            return $"sort={Sort}&page={Page}&pageSize={PageSize}";
+            queryBuilder
+                .Append("sort=").Append(HttpUtility.UrlEncode(Sort))
+                .Append('&');
         }
 
-        return $"sort={Sort}&page={Page}&pageSize={PageSize}&search={Search.ToQueryString()}";
+        if(Fields is { Count: > 0 })
+        {
+            queryBuilder.Append("fields=").Append(HttpUtility.UrlEncode(string.Join(',', Fields)))
+                .Append('&');
+        }
+
+        queryBuilder.Append("page=").Append(Page)
+            .Append('&')
+            .Append("pageSize=").Append(PageSize)
+            .Append('&');
+
+        if(Search is not null)
+        {
+            queryBuilder.Append("search=").Append(HttpUtility.UrlEncode(Search.ToQueryString()));
+        }
+
+        if (queryBuilder[^1] == '&')
+        {
+            queryBuilder.Remove(queryBuilder.Length -1, 1);
+        }
+
+        return queryBuilder.ToString();
     }
 }
 

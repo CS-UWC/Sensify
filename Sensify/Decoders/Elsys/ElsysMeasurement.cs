@@ -19,7 +19,7 @@ public partial record ElsysMeasurement
     public GenericMeasurement<Vector3<sbyte>>? Acceleration { get; set; }
     [Id(3)]
     [BsonIgnoreIfDefault]
-    public GenericMeasurement<ushort>? Ligth { get; set; }
+    public GenericMeasurement<ushort>? Light { get; set; }
     [Id(4)]
     [BsonIgnoreIfDefault]
     public GenericMeasurement<byte>? Motion { get; set; }

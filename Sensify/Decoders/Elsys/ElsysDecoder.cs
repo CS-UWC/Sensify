@@ -63,7 +63,7 @@ public sealed class ElsysDecoder
                 case ElsysDataUpType.Light:
                     result = result with
                     {
-                        Ligth = new((ushort)(bytes[i + 1] << 8 | bytes[i + 2]), MeasurementUnit.Lux)
+                        Light = new((ushort)(bytes[i + 1] << 8 | bytes[i + 2]), MeasurementUnit.Lux)
                     };
                     i += 2;
                     break;

@@ -10,7 +10,7 @@ public partial record ElsysMeasurement
              Temperature = lhs is null ? rhs?.Temperature : lhs.Temperature.Add(rhs?.Temperature), 
              Humidity = lhs is null ? rhs?.Humidity : lhs.Humidity.Add(rhs?.Humidity),
              Acceleration = lhs is null ? rhs?.Acceleration : lhs.Acceleration.Add(rhs?.Acceleration),
-             Ligth = lhs is null ? rhs?.Ligth : lhs.Ligth.Add(rhs?.Ligth),
+             Light = lhs is null ? rhs?.Light : lhs.Light.Add(rhs?.Light),
              Motion = lhs is null ? rhs?.Motion : lhs.Motion.Add(rhs?.Motion),
              Co2 = lhs is null ? rhs?.Co2 : lhs.Co2.Add(rhs?.Co2),
              Vdd = lhs is null ? rhs?.Vdd : lhs.Vdd.Add(rhs?.Vdd),
