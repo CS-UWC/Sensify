@@ -146,7 +146,7 @@ internal class WanesySensorDataBackgroundWorker : BackgroundService
 
                 SearchQuery sq = new( Operand: "endDevice.devEui", Operation: SearchOperation.In, Values: [.. deviceEuisMap.Keys]);
 
-                query = new DataUpQuery("+recvTime", ["payload", "endDevice", "recvTime"], 1, 40, sq);
+                query = new DataUpQuery("+recvTime", ["payload", "endDevice", "recvTime"], 195, 100, sq);
 
             }
 
@@ -204,11 +204,26 @@ internal class WanesySensorDataBackgroundWorker : BackgroundService
                     }
                 }
 
-                var nextPage = response.Count == response.PageSize ? query.Page + 1 : query.Page; 
-                query = query with { Page = nextPage };
-                cachedResults ??= new(_cacheResultsId, LastPageResultCount: response.Count, query);
+                var isFullPage = response.Count == response.PageSize;
 
-                cachedResults = cachedResults with { LastPageResultCount = response.Count, LastQuery =  query };
+                var nextPage = query.Page + 1;
+                var nextPageSize = query.PageSize;
+                var lastPageResultCount = response.Count;
+
+                if (!isFullPage)
+                {
+                    // when the page is not full, compute a new page size as to minimize he amount of old data in the response
+                    nextPageSize = 10; // minim
+                    // next page will be the last page
+                    nextPage = (uint)(response.TotalCount / nextPageSize);
+                    // how many items to skip when recording the next results
+                    lastPageResultCount = (int)(response.TotalCount - nextPage * nextPageSize);
+                }
+
+                query = query with { Page = nextPage, PageSize = nextPageSize };
+                cachedResults ??= new(_cacheResultsId, LastPageResultCount: lastPageResultCount, query);
+
+                cachedResults = cachedResults with { LastPageResultCount = lastPageResultCount, LastQuery =  query };
 
                 await SaveCacheResults(cachedResults);
 
