@@ -146,7 +146,7 @@ internal class WanesySensorDataBackgroundWorker : BackgroundService
 
                 SearchQuery sq = new( Operand: "endDevice.devEui", Operation: SearchOperation.In, Values: [.. deviceEuisMap.Keys]);
 
-                query = new DataUpQuery("+recvTime", ["payload", "endDevice", "recvTime"], 195, 100, sq);
+                query = new DataUpQuery("+recvTime", ["payload", "endDevice", "recvTime"], 1, 100, sq);
 
             }
 
