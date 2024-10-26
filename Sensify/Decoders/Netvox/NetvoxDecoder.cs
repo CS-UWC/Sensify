@@ -8,8 +8,6 @@ public sealed class NetvoxDecoder
 {
     public NetvoxMeasurement? Decode(string payload) => Decode(payload.AsSpan());
 
-
-
     public NetvoxMeasurement? Decode(ReadOnlySpan<char> payload)
     {
 
