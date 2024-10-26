@@ -5,7 +5,7 @@ namespace Sensify.Persistence;
 [BsonIgnoreExtraElements]
 [GenerateSerializer]
 [Alias("Sensify.Persistence.SensorMeasurement`1")]
-public class SensorMeasurement<TMeasurement>
+public class SensorMeasurement<TMeasurement> : ISensorMeasurement
 {
     [BsonElement("sensorId")]
     [Id(0)]
@@ -18,4 +18,13 @@ public class SensorMeasurement<TMeasurement>
     [BsonIgnoreIfDefault]
     [Id(2)]
     public required TMeasurement Measurement { get; set; }
+
+    object? ISensorMeasurement.Measurement => Measurement;
+}
+
+public interface ISensorMeasurement
+{
+    public string SensorId { get; }
+    public DateTime Timestamp { get; }
+    public object? Measurement { get; }
 }

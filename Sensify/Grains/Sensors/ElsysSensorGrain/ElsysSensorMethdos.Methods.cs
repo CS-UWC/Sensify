@@ -36,8 +36,6 @@ internal sealed partial class ElsysSensorMethods : ISensorMethods
 
     public async ValueTask UpdateMeasurementAsync(RawSensorMeasurement raw)
     {
-        //Console.WriteLine($"hexPayload: {hexPayload}");
-
         var data = _decoder.Decode(raw.HexPayload);
 
         SensorMeasurement<ElsysMeasurement> sensorData = new()

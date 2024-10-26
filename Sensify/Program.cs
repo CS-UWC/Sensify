@@ -1,11 +1,14 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Orleans;
 using Sensify.Decoders.Common;
-using Sensify.Decoders.Elsys;
 using Sensify.Grains;
 using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
 using Sensify.Workers.Wanesy;
+using System.IO.Pipelines;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,7 +43,12 @@ builder.Services.Configure<WanesyCredentials>(options =>
 });
 builder.Services.AddHostedService<WanesySensorDataBackgroundWorker>();
 
-const string MyAllowSpecificOrigins = "test";
+const string MyAllowSpecificOrigins = "ALL";
+
+var _jsonSerializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+_jsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault;
+_jsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+_jsonSerializerOptions.Converters.Add(new JsonConverterUnixDateTime());
 
 builder.Services.AddCors(options =>
 {
@@ -103,41 +111,35 @@ api.MapGet("/sensors", async (IGrainFactory grainFactory) =>
 });
 
 api.MapGet("/stream", async (
-    //[FromQuery(Name = "sensorId")] string sensorId,
-    //ulong startDate,
-    //ulong endDate,
+    [FromQuery(Name = "sensorId")] string sensorId,
     IGrainFactory grainFactory,
-    HttpRequest request) =>
+    ILogger<SensorDataStream> logger,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
 {
 
-    var sensorInfos = await grainFactory.GetGrain<ISensorManagerGrain>(Guid.Empty).GetSensors();
-    //Random random = new();
-
-    List<object> results = [];
-
-    foreach (var sensorInfo in sensorInfos)
+    var response = httpContext.Response;
+    var bodyWriter = response.BodyWriter;
+    if (!SensorId.IsValid(sensorId))
     {
-
-        if(sensorInfo.Id is { Id: null} or not { SensorType: SupportedSensorType.Elsys})
-        {
-            continue;
-        }
-
-        var sensor = grainFactory.GetGrain<ISensor>(sensorInfo.Id.Value.ToString());
-
-        await foreach( var m in sensor.GetMeasurementsAsync())
-        {
-            results.Add(m);
-        }
+        response.StatusCode = 400;
+        await bodyWriter.WriteAsync(Encoding.UTF8.GetBytes($"SensorId {sensorId}"), cancellationToken);
+        return;
     }
 
-    return Results.Ok(results);
+    response.StatusCode = 200;
+    response.Headers.ContentType = "text/event-stream";
+    response.Headers.CacheControl = "no-store";
+
+    await new SensorDataStream(sensorId, grainFactory, logger).StreamAsync(bodyWriter, _jsonSerializerOptions, cancellationToken);
 
 });
 
-api.MapPost("/record/{sensorId:required}", async (ILoggerFactory loggerFactory, IGrainFactory grainFactory, HttpRequest request, [FromRoute(Name= "sensorId")] string sensorId /*[FromBody] Dictionary<string,object> body*/) =>
+api.MapPost("/record/{sensorId:required}", async (
+    IGrainFactory grainFactory,
+    HttpRequest request,
+    [FromRoute(Name= "sensorId")] string sensorId) =>
 {
-    //var logger = loggerFactory.CreateLogger("record");
 
     if (!SensorId.IsValid(sensorId))
     {
@@ -163,3 +165,43 @@ api.MapGet("/time", (ILoggerFactory loggerFactory) => {
 app.Run();
 
 record AddSensorRequest(string SensorName, string? PayloadDecoder);
+
+sealed class SensorDataStream(string sensorId, IGrainFactory grainFactory, ILogger<SensorDataStream> logger)
+{
+    private readonly StringBuilder _resultBuilder = new();
+
+    public async Task StreamAsync(PipeWriter writer, JsonSerializerOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var sensor = grainFactory.GetGrain<ISensor>(sensorId);
+
+            await foreach (var measurement in sensor.GetMeasurementsAsync())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (measurement is not ISensorMeasurement sensorMeasurement) continue;
+
+                Write(sensorMeasurement, options);
+                await writer.WriteAsync(Encoding.UTF8.GetBytes(_resultBuilder.ToString()), cancellationToken);
+                await writer.FlushAsync(cancellationToken);
+
+                _resultBuilder.Clear();
+
+            }
+
+            if (!cancellationToken.IsCancellationRequested)
+                await writer.CompleteAsync();
+        }catch (Exception ex) when (ex is OperationCanceledException)
+        {
+            logger.LogError(ex, "Operation cancelled");
+        }
+    }
+
+    public void Write(ISensorMeasurement data, JsonSerializerOptions? options = null)
+    {
+        _resultBuilder.Append("id:").AppendLine(new DateTimeOffset(data.Timestamp).ToUnixTimeMilliseconds().ToString())
+            .Append("event:").AppendLine(sensorId)
+            .Append("data:").AppendLine(JsonSerializer.Serialize(data, options))
+            .AppendLine();
+    }
+}
