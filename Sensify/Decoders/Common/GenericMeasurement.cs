@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
+﻿using Amazon.Runtime;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Sensify.Decoders.Common;
 

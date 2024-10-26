@@ -9,7 +9,7 @@ namespace Sensify.Grains.ElsysSensorGrain;
 
 internal sealed partial class ElsysSensorMethods 
 {
-    public IAsyncEnumerable<object> GetMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default)
+    public IAsyncEnumerable<object> GetMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default, CancellationToken cancellationToken = default)
     {
         List<FilterDefinition<SensorMeasurement<ElsysMeasurement>>> filters = [];
 
@@ -27,50 +27,81 @@ internal sealed partial class ElsysSensorMethods
         var combined = Builders<SensorMeasurement<ElsysMeasurement>>.Filter.And(filters);
         var sort = Builders<SensorMeasurement<ElsysMeasurement>>.Sort.Ascending(x => x.Timestamp);
 
-        var findFluent = _measurements.Find(combined)
-            .Sort(sort);
+        var asyncEnumerable = _measurements.Find(combined)
+            .Sort(sort)
+            .GetAsyncEnumerable(cancellationToken);
+        IAsyncEnumerable<object> dbSource = asyncEnumerable.Transform(x => (object)x, cancellationToken: cancellationToken);
 
         if (window != MeasurementWindow.None)
         {
-            return new WindowedAsyncEnumerable(findFluent, window);
+            dbSource = new WindowedAsyncEnumerable(asyncEnumerable, window);
         }
 
-        return findFluent.GetAsyncEnumerable()
-            .Transform(x => (object)x);
-        
+        IncrementLiveStreamsCount();
+        return MergeWithLiveSource(dbSource, cancellationToken);
+
+    }
+
+
+    private async IAsyncEnumerable<object> MergeWithLiveSource(IAsyncEnumerable<object> dbSource, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        SensorMeasurement<ElsysMeasurement>? lastDBItem = null;
+
+        await foreach (var item in dbSource)
+        {
+            lastDBItem = item as SensorMeasurement<ElsysMeasurement>;
+            yield return item;
+        }
+
+        if (lastDBItem is null)
+        {
+            await foreach (var item in _liveQueue.Reader.ReadAllAsync(cancellationToken))
+            {
+                yield return item;
+            }
+
+            yield break;
+        }
+
+        await foreach (var item in _liveQueue.Reader.ReadAllAsync(cancellationToken))
+        {
+            if (lastDBItem.Timestamp > item.Timestamp) continue;
+
+            yield return item;
+        }
     }
 
 }
 
 file readonly struct WindowedAsyncEnumerable : IAsyncEnumerable<object>
 {
-    private readonly IFindFluent<SensorMeasurement<ElsysMeasurement>, SensorMeasurement<ElsysMeasurement>> _findFluent;
+    private readonly IAsyncEnumerable<SensorMeasurement<ElsysMeasurement>> _source;
     private readonly MeasurementWindow _window;
+    private readonly CancellationToken _cancellationToken;
 
-    public WindowedAsyncEnumerable(IFindFluent<SensorMeasurement<ElsysMeasurement>, SensorMeasurement<ElsysMeasurement>> findFluent, MeasurementWindow window)
+    public WindowedAsyncEnumerable(
+        IAsyncEnumerable<SensorMeasurement<ElsysMeasurement>> source,
+        MeasurementWindow window,
+        CancellationToken cancellationToken = default)
     {
-        _findFluent = findFluent;
+        _source = source;
         _window = window;
+        _cancellationToken = cancellationToken;
     }
 
     public IAsyncEnumerator<object> GetAsyncEnumerator(CancellationToken cancellationToken = default)
     {
-        //return _window.Type switch
-        //{
-        //    MeasurementWindowType.Integral => new CountWindowValueProducer(_findFluent, _window).GetAsyncEnumerator(cancellationToken),
-        //    _ => new DurationWindowValueProducer(_findFluent, _window).GetAsyncEnumerator(cancellationToken),
-        //};
+
+        var LinkedCTSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cancellationToken);
 
         var windowedValues = _window.Type switch
         {
-            MeasurementWindowType.Integral => _findFluent.GetAsyncEnumerator(cancellationToken)
-            .Window(Math.Max(1, Math.Min(60, _window.WindowSize))),
-            _ => _findFluent.GetAsyncEnumerator(cancellationToken)
-            .Window(CreateDurationWindow(TimeSpan.FromMinutes(1).Max(TimeSpan.FromHours(6).Min(_window.WindowDuration))), cancellationToken)
+            MeasurementWindowType.Integral => _source.Window(Math.Max(1, Math.Min(60, _window.WindowSize)), LinkedCTSource.Token),
+            _ => _source.Window(CreateDurationWindow(TimeSpan.FromMinutes(1).Max(TimeSpan.FromHours(6).Min(_window.WindowDuration))), LinkedCTSource.Token)
         };
 
-        return windowedValues.GetAsyncEnumerator(cancellationToken)
-            .Transform(static batch => (object)batch.Aggregate(Aggregate), cancellationToken);
+        return windowedValues.GetAsyncEnumerator(LinkedCTSource.Token)
+            .Transform(static batch => (object)batch.Aggregate(Aggregate), LinkedCTSource.Token);
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -110,135 +141,4 @@ file readonly struct WindowedAsyncEnumerable : IAsyncEnumerable<object>
 
     }
 
-}
-
-file readonly struct CountWindowValueProducer : IAsyncEnumerable<SensorMeasurement<ElsysMeasurement>>
-{
-    private readonly IFindFluent<SensorMeasurement<ElsysMeasurement>, SensorMeasurement<ElsysMeasurement>> _findFluent;
-    private readonly MeasurementWindow _window;
-
-    public CountWindowValueProducer(
-        IFindFluent<SensorMeasurement<ElsysMeasurement>, SensorMeasurement<ElsysMeasurement>> findFluent,
-        MeasurementWindow window)
-    {
-        _findFluent = findFluent;
-        _window = window;
-    }
-
-    public async IAsyncEnumerator<SensorMeasurement<ElsysMeasurement>> GetAsyncEnumerator(CancellationToken cancellationToken = default)
-    {
-        var cursor = await _findFluent.ToCursorAsync(cancellationToken);
-
-        var windowSize = Math.Max(1, Math.Min(60, _window.WindowSize));
-
-        if(windowSize == 1)
-        {
-
-            while (await cursor.MoveNextAsync(cancellationToken))
-            {
-                foreach(var doc in cursor.Current)
-                {
-                    yield return doc;
-                }
-
-            }
-
-            // have read everything stop
-            yield break;
-        }
-
-        SensorMeasurement<ElsysMeasurement>? previousMeasurement = null;
-        var consumedCount = 0;
-        while (await cursor.MoveNextAsync(cancellationToken))
-        {
-
-            var enumerator = cursor.Current.GetEnumerator();
-
-            while (enumerator.MoveNext())
-            {
-                var current = enumerator.Current;
-                consumedCount++;
-
-                if(previousMeasurement is null)
-                {
-                    previousMeasurement = current;
-                    continue;
-                }
-
-
-                if(windowSize == consumedCount)
-                {
-                    consumedCount = 0;
-                    var v = previousMeasurement;
-                    previousMeasurement = null;
-                    yield return v;
-                    continue;
-                }
-
-                previousMeasurement.Timestamp = current.Timestamp;
-                previousMeasurement.SensorId ??= current.SensorId;
-                previousMeasurement.Measurement += current.Measurement;
-            }
-
-        }
-
-        if(previousMeasurement is not null) yield return previousMeasurement;
-    }
-}
-
-file readonly struct DurationWindowValueProducer : IAsyncEnumerable<SensorMeasurement<ElsysMeasurement>>
-{
-    private readonly IFindFluent<SensorMeasurement<ElsysMeasurement>, SensorMeasurement<ElsysMeasurement>> _findFluent;
-    private readonly MeasurementWindow _window;
-
-    public DurationWindowValueProducer(
-        IFindFluent<SensorMeasurement<ElsysMeasurement>, SensorMeasurement<ElsysMeasurement>> findFluent,
-        MeasurementWindow window)
-    {
-        _findFluent = findFluent;
-        _window = window;
-    }
-    public async IAsyncEnumerator<SensorMeasurement<ElsysMeasurement>> GetAsyncEnumerator(CancellationToken cancellationToken = default)
-    {
-        var cursor = await _findFluent.ToCursorAsync(cancellationToken);
-
-        var windowSize = TimeSpan.FromTicks(Math.Max(TimeSpan.FromMinutes(1).Ticks, Math.Min(TimeSpan.FromHours(6).Ticks, _window.WindowDuration.Ticks)));
-
-        SensorMeasurement<ElsysMeasurement>? previousMeasurement = null;
-        
-        DateTime windowStartValueTimeStamp = DateTime.MaxValue;
-
-        while (await cursor.MoveNextAsync(cancellationToken))
-        {
-
-            var enumerator = cursor.Current.GetEnumerator();
-
-            while (enumerator.MoveNext())
-            {
-                var current = enumerator.Current;
-
-                if(previousMeasurement is null)
-                {
-                    previousMeasurement = current;
-                    windowStartValueTimeStamp = current.Timestamp;
-                    continue;
-                }
-
-                if ((current.Timestamp - windowStartValueTimeStamp) >= windowSize)
-                {
-                    var v = previousMeasurement;
-                    previousMeasurement = null;
-                    yield return v;
-                    continue;
-                }
-
-                previousMeasurement.Timestamp = current.Timestamp;
-                previousMeasurement.SensorId ??= current.SensorId;
-                previousMeasurement.Measurement += current.Measurement;
-            }
-
-        }
-
-        if (previousMeasurement is not null) yield return previousMeasurement;
-    }
 }

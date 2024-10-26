@@ -93,9 +93,15 @@ public sealed partial class GenericSensor : Grain, ISensor
             .Else(static () => ValueTask.CompletedTask);
     }
 
-    public IAsyncEnumerable<object> GetMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default)
+    public IAsyncEnumerable<object> GetMeasurementsAsync(SensorMeasurementDateRange dateRange = default, MeasurementWindow window = default, CancellationToken cancellationToken = default)
     {
-        return _sensorMethods.WhenNotNull(x => x!.GetMeasurementsAsync(dateRange, window))
+        return _sensorMethods.WhenNotNull(x => x!.GetMeasurementsAsync(dateRange, window, cancellationToken))
+            .Else(static () => CompletedAsyncEnumerable<object>());
+    }
+
+    public IAsyncEnumerable<object> GetMetricsAsync(CancellationToken cancellationToken = default)
+    {
+        return _sensorMethods.WhenNotNull(x => x!.GetMetricsAsync(cancellationToken))
             .Else(static () => CompletedAsyncEnumerable<object>());
     }
 

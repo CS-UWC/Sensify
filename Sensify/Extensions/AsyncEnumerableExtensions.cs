@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading.Channels;
 using MongoDB.Driver;
 
 namespace Sensify.Extensions;
@@ -117,6 +118,35 @@ public static class AsyncEnumerableExtensions
         {
             yield return transform(value);
         }
+    }
+
+    public static IAsyncEnumerable<T> Merge<T>(this IAsyncEnumerable<T> source1, IAsyncEnumerable<T> source2, CancellationToken cancellationToken = default)
+    {
+        var channel = Channel.CreateUnbounded<T>();
+        var writer = channel.Writer;
+
+        _ = Task.Run(async () =>
+        {
+            await foreach (var value in source1)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await writer.WriteAsync(value);
+
+            }
+        }, cancellationToken);
+        
+        _ = Task.Run(async () =>
+        {
+            await foreach (var value in source2)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await writer.WriteAsync(value);
+
+            }
+        }, cancellationToken);
+
+        return channel.Reader.ReadAllAsync(cancellationToken);
+
     }
 
 }

@@ -2,6 +2,7 @@
 using Sensify.Decoders.Netvox;
 using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
+using System.Threading.Channels;
 
 namespace Sensify.Grains.NetvoxSensorGrain;
 
@@ -12,6 +13,8 @@ internal sealed partial class NetvoxSensorMethods : ISensorMethods
     private readonly IGrainContext _grainContext;
     private readonly NetvoxDecoder _decoder = new();
     private readonly IMongoCollection<SensorMeasurement<NetvoxMeasurement>> _measurements;
+    private readonly Channel<SensorMeasurement<NetvoxMeasurement>> _liveQueue = Channel.CreateUnbounded<SensorMeasurement<NetvoxMeasurement>>();
+    private ulong _liveStreamsCount = 0;
 
     public NetvoxSensorMethods(
         IPersistentState<SensorInfo> state,
@@ -49,7 +52,17 @@ internal sealed partial class NetvoxSensorMethods : ISensorMethods
             Measurement = data
         };
 
+        if (_liveStreamsCount > 0)
+        {
+            _liveQueue.Writer.TryWrite(sensorData);
+        }
+
         await _measurements.InsertOneAsync(sensorData);
+    }
+
+    private void IncrementLiveStreamsCount()
+    {
+        Interlocked.Increment(ref _liveStreamsCount);
     }
 
     public async ValueTask UpdateSensorInfoAsync(UpdateSensorInfo update)

@@ -2,6 +2,8 @@
 using Sensify.Decoders.Synetica;
 using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 
 namespace Sensify.Grains.SyneticaSensorGrain;
 
@@ -12,6 +14,8 @@ internal sealed partial class SyneticaSensorMethods : ISensorMethods
     private readonly IGrainContext _grainContext;
     private readonly SyneticaDecoder _decoder = new();
     private readonly IMongoCollection<SensorMeasurement<SyneticaMeasurement>> _measurements;
+    private readonly Channel<SensorMeasurement<SyneticaMeasurement>> _LiveQueue= Channel.CreateUnbounded<SensorMeasurement<SyneticaMeasurement>>();
+    private ulong _liveStreamsCount = 0; 
 
     public SyneticaSensorMethods(
         IPersistentState<SensorInfo> state,
@@ -36,7 +40,6 @@ internal sealed partial class SyneticaSensorMethods : ISensorMethods
 
     public async ValueTask UpdateMeasurementAsync(RawSensorMeasurement raw)
     {
-        //Console.WriteLine($"hexPayload: {hexPayload}");
 
         var data = _decoder.Decode(raw.HexPayload);
 
@@ -49,7 +52,17 @@ internal sealed partial class SyneticaSensorMethods : ISensorMethods
             Measurement = data
         };
 
+        if(_liveStreamsCount > 0)
+        {
+            _LiveQueue.Writer.TryWrite(sensorData);
+        }
+
         await _measurements.InsertOneAsync(sensorData);
+    }
+
+    private void IncrementLiveStreamsCount()
+    {
+        Interlocked.Increment(ref _liveStreamsCount);
     }
 
     public async ValueTask UpdateSensorInfoAsync(UpdateSensorInfo update)

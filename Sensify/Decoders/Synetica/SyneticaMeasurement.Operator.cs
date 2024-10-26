@@ -22,4 +22,46 @@ public partial record SyneticaMeasurement
         };
     }
 
+    public static SyneticaMeasurementMetric? operator /(SyneticaMeasurement? lhs, double rhs)
+    {
+        SyneticaMeasurementMetric? metric = lhs;
+        if (metric is null) return null;
+
+        return new SyneticaMeasurementMetric
+        {
+            Temperature = metric is null ? default : metric.Temperature?.Div(rhs),
+            Humidity = metric is null ? default : metric.Humidity?.Div(rhs),
+            AmbientLight = metric is null ? default : metric.AmbientLight?.Div(rhs),
+            Pressure = metric is null ? default : metric.Pressure?.Div(rhs),
+            VolatileOrganicCompounds = metric is null ? default : metric.VolatileOrganicCompounds?.Div(rhs),
+            Bvoc = metric is null ? default : metric.Bvoc?.Div(rhs),
+            Co2e = metric is null ? default : metric.Co2e?.Div(rhs),
+            SoundMin = metric is null ? default : metric.SoundMin?.Div(rhs),
+            SoundAvg = metric is null ? default : metric.SoundAvg?.Div(rhs),
+            SoundMax = metric is null ? default : metric.SoundMax?.Div(rhs),
+            BattVolt = metric is null ? default : metric.BattVolt?.Div(rhs)
+        };
+    }
+
+    public static implicit operator SyneticaMeasurementMetric?(SyneticaMeasurement? measurement)
+    {
+        if (measurement is null) return null;
+
+        return new SyneticaMeasurementMetric
+        {
+            Temperature = measurement?.Temperature is null ? default : new(measurement.Temperature.Value, measurement.Temperature.Unit),
+            Humidity = measurement?.Humidity is null ? default : new(measurement.Humidity.Value, measurement.Humidity.Unit),
+            AmbientLight = measurement?.AmbientLight is null ? default : new(measurement.AmbientLight.Value, measurement.AmbientLight.Unit),
+            Pressure = measurement?.Pressure is null ? default : new(measurement.Pressure.Value, measurement.Pressure.Unit),
+            VolatileOrganicCompounds = measurement?.VolatileOrganicCompounds is null ? default : new(measurement.VolatileOrganicCompounds.Value, measurement.VolatileOrganicCompounds.Unit),
+            Bvoc = measurement?.Bvoc is null ? default : new(measurement.Bvoc.Value, measurement.Bvoc.Unit),
+            Co2e = measurement?.Co2e is null ? default : new(measurement.Co2e.Value, measurement.Co2e.Unit),
+            SoundMin = measurement?.SoundMin is null ? default : new(measurement.SoundMin.Value, measurement.SoundMin.Unit),
+            SoundAvg = measurement?.SoundAvg is null ? default : new(measurement.SoundAvg.Value, measurement.SoundAvg.Unit),
+            SoundMax = measurement?.SoundMax is null ? default : new(measurement.SoundMax.Value, measurement.SoundMax.Unit),
+            BattVolt = measurement?.BattVolt is null ? default : new(measurement.BattVolt.Value, measurement.BattVolt.Unit)
+        };
+
+    }
+
 }

@@ -21,10 +21,3 @@ public class SensorMeasurement<TMeasurement> : ISensorMeasurement
 
     object? ISensorMeasurement.Measurement => Measurement;
 }
-
-public interface ISensorMeasurement
-{
-    public string SensorId { get; }
-    public DateTime Timestamp { get; }
-    public object? Measurement { get; }
-}

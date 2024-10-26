@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Sensify.Decoders.Common;
+using Sensify.Extensions;
 using Sensify.Grains;
 using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
@@ -45,8 +46,10 @@ builder.Services.AddHostedService<WanesySensorDataBackgroundWorker>();
 
 const string MyAllowSpecificOrigins = "ALL";
 
-var _jsonSerializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-_jsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault;
+var _jsonSerializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+{
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+};
 _jsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 _jsonSerializerOptions.Converters.Add(new JsonConverterUnixDateTime());
 
@@ -176,7 +179,12 @@ sealed class SensorDataStream(string sensorId, IGrainFactory grainFactory, ILogg
         {
             var sensor = grainFactory.GetGrain<ISensor>(sensorId);
 
-            await foreach (var measurement in sensor.GetMeasurementsAsync())
+            var measurementsSource = sensor.GetMeasurementsAsync(cancellationToken: cancellationToken);
+            var metricsSource = sensor.GetMetricsAsync(cancellationToken);
+
+            var source = measurementsSource.Merge(metricsSource, cancellationToken);
+
+            await foreach (var measurement in source)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (measurement is not ISensorMeasurement sensorMeasurement) continue;
@@ -186,6 +194,8 @@ sealed class SensorDataStream(string sensorId, IGrainFactory grainFactory, ILogg
                 await writer.FlushAsync(cancellationToken);
 
                 _resultBuilder.Clear();
+
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
 
             }
 
@@ -199,9 +209,18 @@ sealed class SensorDataStream(string sensorId, IGrainFactory grainFactory, ILogg
 
     public void Write(ISensorMeasurement data, JsonSerializerOptions? options = null)
     {
-        _resultBuilder.Append("id:").AppendLine(new DateTimeOffset(data.Timestamp).ToUnixTimeMilliseconds().ToString())
-            .Append("event:").AppendLine(sensorId)
-            .Append("data:").AppendLine(JsonSerializer.Serialize(data, options))
+        _resultBuilder.Append("id:").AppendLine(new DateTimeOffset(data.Timestamp).ToUnixTimeMilliseconds().ToString());
+
+        if (data.Measurement is IMetric)
+        {
+            _resultBuilder.Append("event:metric:").AppendLine(sensorId);
+        }
+        else
+        {
+            _resultBuilder.Append("event:measurement:").AppendLine(sensorId);
+        }
+
+        _resultBuilder.Append("data:").AppendLine(JsonSerializer.Serialize(data, options))
             .AppendLine();
     }
 }

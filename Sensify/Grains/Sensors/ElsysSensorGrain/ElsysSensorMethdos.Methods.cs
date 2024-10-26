@@ -2,6 +2,7 @@
 using Sensify.Decoders.Elsys;
 using Sensify.Grains.Sensors.Common;
 using Sensify.Persistence;
+using System.Threading.Channels;
 
 namespace Sensify.Grains.ElsysSensorGrain;
 
@@ -12,6 +13,8 @@ internal sealed partial class ElsysSensorMethods : ISensorMethods
     private readonly IGrainContext _grainContext;
     private readonly ElsysDecoder _decoder = new();
     private readonly IMongoCollection<SensorMeasurement<ElsysMeasurement>> _measurements;
+    private readonly Channel<SensorMeasurement<ElsysMeasurement>> _liveQueue = Channel.CreateUnbounded<SensorMeasurement<ElsysMeasurement>>();
+    private ulong _liveStreamsCount = 0;
 
     public ElsysSensorMethods(
         IPersistentState<SensorInfo> state,
@@ -45,7 +48,17 @@ internal sealed partial class ElsysSensorMethods : ISensorMethods
             Measurement = data
         };
 
+        if (_liveStreamsCount > 0)
+        {
+            _liveQueue.Writer.TryWrite(sensorData);
+        }
+
         await _measurements.InsertOneAsync(sensorData);
+    }
+
+    private void IncrementLiveStreamsCount()
+    {
+        Interlocked.Increment(ref _liveStreamsCount);
     }
 
     public async ValueTask UpdateSensorInfoAsync(UpdateSensorInfo update)
